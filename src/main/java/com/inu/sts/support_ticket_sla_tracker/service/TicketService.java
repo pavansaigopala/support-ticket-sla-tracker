@@ -2,6 +2,7 @@ package com.inu.sts.support_ticket_sla_tracker.service;
 
 import com.inu.sts.support_ticket_sla_tracker.domain.*;
 import com.inu.sts.support_ticket_sla_tracker.dto.*;
+import com.inu.sts.support_ticket_sla_tracker.event.AuditEventPublisher;
 import com.inu.sts.support_ticket_sla_tracker.exception.BadRequestException;
 import com.inu.sts.support_ticket_sla_tracker.exception.ResourceNotFoundException;
 import com.inu.sts.support_ticket_sla_tracker.mapper.CommentMapper;
@@ -9,7 +10,6 @@ import com.inu.sts.support_ticket_sla_tracker.mapper.TicketMapper;
 import com.inu.sts.support_ticket_sla_tracker.repository.TicketCommentRepository;
 import com.inu.sts.support_ticket_sla_tracker.repository.TicketRepository;
 import com.inu.sts.support_ticket_sla_tracker.repository.TicketSpecifications;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,13 +23,25 @@ import java.util.UUID;
  * PATCH uses optimistic locking via @Version; concurrent update returns 409.
  */
 @Service
-@RequiredArgsConstructor
 public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final TicketCommentRepository commentRepository;
     private final TicketMapper ticketMapper;
     private final CommentMapper commentMapper;
+    private final AuditEventPublisher auditEventPublisher;
+
+    public TicketService(TicketRepository ticketRepository,
+                         TicketCommentRepository commentRepository,
+                         TicketMapper ticketMapper,
+                         CommentMapper commentMapper,
+                         AuditEventPublisher auditEventPublisher) {
+        this.ticketRepository = ticketRepository;
+        this.commentRepository = commentRepository;
+        this.ticketMapper = ticketMapper;
+        this.commentMapper = commentMapper;
+        this.auditEventPublisher = auditEventPublisher;
+    }
 
     @Transactional(readOnly = true)
     public TicketResponse getById(UUID id) {
@@ -48,6 +60,8 @@ public class TicketService {
                 .customerId(request.getCustomerId())
                 .build();
         ticket = ticketRepository.save(ticket);
+        auditEventPublisher.publish("TICKET", ticket.getId(), "TICKET_CREATED",
+                "title=" + ticket.getTitle() + ",priority=" + ticket.getPriority());
         return ticketMapper.toResponse(ticket);
     }
 
@@ -73,7 +87,12 @@ public class TicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found: " + id));
         if (request.getTitle() != null) ticket.setTitle(request.getTitle());
         if (request.getDescription() != null) ticket.setDescription(request.getDescription());
-        if (request.getPriority() != null) ticket.setPriority(request.getPriority());
+        if (request.getPriority() != null) {
+            if (!request.getPriority().equals(ticket.getPriority())) {
+                ticket.setPriority(request.getPriority());
+                auditEventPublisher.publish("TICKET", id, "PRIORITY_CHANGED", "priority=" + request.getPriority());
+            }
+        }
         ticket = ticketRepository.save(ticket);
         return ticketMapper.toResponse(ticket);
     }
@@ -96,6 +115,7 @@ public class TicketService {
 
         ticket.setStatus(newStatus);
         ticket = ticketRepository.save(ticket);
+        auditEventPublisher.publish("TICKET", id, "STATUS_CHANGED", "status=" + newStatus);
         return ticketMapper.toResponse(ticket);
     }
 
@@ -109,6 +129,7 @@ public class TicketService {
                 .author(request.getAuthor())
                 .build();
         comment = commentRepository.save(comment);
+        auditEventPublisher.publish("TICKET", ticketId, "COMMENT_ADDED", "commentId=" + comment.getId());
         return commentMapper.toResponse(comment);
     }
 }

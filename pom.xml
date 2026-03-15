@@ -59,18 +59,14 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<!-- Flyway for database migrations -->
+		<!-- Flyway for database migrations (works with H2 via JDBC driver) -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 		<!-- MapStruct for DTO mapping -->
 		<dependency>
@@ -146,6 +142,14 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>**/domain/**</exclude>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/config/**</exclude>
+								<exclude>**/repository/**</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

@@ -20,7 +20,7 @@ CREATE INDEX idx_ticket_status ON ticket(status);
 CREATE INDEX idx_ticket_priority ON ticket(priority);
 CREATE INDEX idx_ticket_customer_id ON ticket(customer_id);
 CREATE INDEX idx_ticket_created_at ON ticket(created_at);
-CREATE INDEX idx_ticket_sla_breached ON ticket(sla_breached) WHERE sla_breached = TRUE;
+CREATE INDEX idx_ticket_sla_breached ON ticket(sla_breached);
 
 CREATE TABLE ticket_comment (
     id              UUID PRIMARY KEY,

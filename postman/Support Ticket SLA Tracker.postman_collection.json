@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "Support Ticket SLA Tracker",
+    "description": "REST API for tickets, comments, SLA, and audit. Basic Auth: agent/agent (read+write), viewer/viewer (read only).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "{{username}}", "type": "string" },
+      { "key": "password", "value": "{{password}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "username", "value": "agent" },
+    { "key": "password", "value": "agent" },
+    { "key": "ticketId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Create ticket",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('ticketId', body.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Login issue - cannot sign in\",\n  \"description\": \"User reports 500 on login page\",\n  \"priority\": \"HIGH\",\n  \"customerId\": \"cust-001\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/tickets",
+            "description": "Create a new ticket. Requires AGENT role. Saves ticketId to collection variable for other requests."
+          }
+        },
+        {
+          "name": "List tickets",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tickets?page=0&size=20&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tickets"],
+              "query": [
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "priority", "value": "", "disabled": true },
+                { "key": "customerId", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "slaBreached", "value": "", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sort", "value": "createdAt,desc" }
+              ]
+            },
+            "description": "Paginated list with optional filters: status (NEW, IN_PROGRESS, ON_HOLD, RESOLVED, CLOSED), priority (LOW, MEDIUM, HIGH, CRITICAL), customerId, search (title/description), slaBreached. sort: property,asc|desc."
+          }
+        },
+        {
+          "name": "Get ticket by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/tickets/{{ticketId}}",
+            "description": "Get a single ticket. Use ticketId from Create response or list."
+          }
+        },
+        {
+          "name": "Update ticket (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated title\",\n  \"description\": \"Optional description\",\n  \"priority\": \"CRITICAL\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/tickets/{{ticketId}}",
+            "description": "Partial update. Send only fields to change. Uses optimistic locking (409 on conflict)."
+          }
+        },
+        {
+          "name": "Update ticket status",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/tickets/{{ticketId}}/status",
+            "description": "Status: NEW, IN_PROGRESS, ON_HOLD, RESOLVED, CLOSED. Cannot change from CLOSED. RESOLVED requires at least one comment."
+          }
+        },
+        {
+          "name": "Add comment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Checked logs – fix deployed\",\n  \"author\": \"agent1\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/tickets/{{ticketId}}/comments",
+            "description": "Add a comment to a ticket. Required before setting status to RESOLVED."
+          }
+        },
+        {
+          "name": "Get ticket SLA",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/tickets/{{ticketId}}/sla",
+            "description": "Returns dueAt and remainingSeconds for the ticket's SLA."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "Get audit history",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit?entityType=TICKET&entityId={{ticketId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audit"],
+              "query": [
+                { "key": "entityType", "value": "TICKET" },
+                { "key": "entityId", "value": "{{ticketId}}" }
+              ]
+            },
+            "description": "List audit events for an entity (e.g. entityType=TICKET, entityId=<ticket UUID>)."
+          }
+        }
+      ]
+    }
+  ]
+}

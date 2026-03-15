@@ -6,33 +6,19 @@ Spring Boot microservice: manage tickets, track SLAs, audit changes. (Inu Techno
 
 ## Run locally
 
-**Need:** Java 21, Maven, PostgreSQL.
+**Need:** Java 21, Maven.
 
-1. **Build**
-   ```bash
-   ./mvnw clean install
-   ```
+```bash
+./mvnw spring-boot:run
+```
 
-2. **Create DB** (once)
-   ```bash
-   psql -U postgres -c "CREATE DATABASE support_ticket_db;"
-   ```
+→ `http://localhost:8080` · API: `/api/v1` · Swagger: `/swagger-ui.html` · H2 console: `/h2-console`
 
-3. **Start**
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-   → `http://localhost:8080` · API: `/api/v1` · Swagger: `/swagger-ui.html`
+Uses **H2 in-memory** by default (no PostgreSQL required).
 
----
-
-## Env vars (optional)
-
-| Variable | Default |
-|----------|---------|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/support_ticket_db` |
-| `SPRING_DATASOURCE_USERNAME` | `postgres` |
-| `SPRING_DATASOURCE_PASSWORD` | `postgres` |
+**Auth (Basic):** Send header `Authorization: Basic <base64(username:password)`.
+- **agent** / **agent** → role AGENT (read + write).
+- **viewer** / **viewer** → role VIEWER (read only). Write calls return 403.
 
 ---
 
@@ -71,8 +57,10 @@ More: [docs/architecture.md](docs/architecture.md), [docs/database-schema.md](do
 
 ---
 
-## Tests & observability
+## Tests
 
-- **Tests:** `./mvnw test` · Coverage: `target/site/jacoco/index.html`
+- **Run:** `./mvnw test`
+- **Coverage:** After `./mvnw test`, open `target/site/jacoco/index.html`
+- Unit tests for TicketService and SlaService (mocked repos)
 - **Health:** `/actuator/health` · **Metrics:** `/actuator/metrics`
 - **Logs:** Use header `X-Correlation-Id` (or auto-generated) for tracing.

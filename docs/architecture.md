@@ -24,7 +24,7 @@ Support Ticket & SLA Tracker is a Spring Boot microservice with layered architec
 └───────────────────────────┬─────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────┐
-│  PostgreSQL                                                 │
+│  H2 (in-memory)                                             │
 │  Flyway migrations: ticket, ticket_comment, audit_event      │
 └─────────────────────────────────────────────────────────────┘
 ```

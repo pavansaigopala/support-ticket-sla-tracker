@@ -1,13 +1,20 @@
 # Sequence Flows for Key Operations
 
+## Audit (async)
+
+- All audit events use **AuditEventPayload** (entityType, entityId, eventType, payload, correlationId).
+- **AuditEventDispatcher** receives the event and calls **AuditEventAsyncListener.handleAuditEvent** (@Async).
+- Listener persists to **AuditEvent** table; on failure logs with correlation id and does not fail the main API.
+- **CorrelationIdFilter** sets `X-Correlation-Id` from header or generates one; stored in MDC and response header.
+
 ## 1. Create Ticket
 
 1. Client → `POST /api/v1/tickets` (body: title, description, priority, customerId).
 2. Controller validates, maps to DTO, calls TicketService.create.
 3. Service creates Ticket entity, saves via TicketRepository.
-4. Service publishes domain event (e.g. TicketCreatedEvent).
+4. Service publishes AuditEventPayload (TICKET_CREATED).
 5. Controller returns 201 + created ticket DTO.
-6. Async: event listener persists AuditEvent (TICKET_CREATED).
+6. Async: AuditEventAsyncListener persists AuditEvent (TICKET_CREATED).
 
 ## 2. Change Status (e.g. to RESOLVED)
 
@@ -20,10 +27,10 @@
 
 ## 3. SLA Breach Detection (Scheduled Job)
 
-1. Scheduler runs every minute (configurable).
-2. Job calls service to find tickets: SLA breached (due passed, not RESOLVED/CLOSED) and not yet marked (e.g. sla_breached=false or no SLA_BREACHED audit).
-3. For each: set sla_breached=true (or equivalent), persist one AuditEvent (SLA_BREACHED).
-4. Concurrency: ensure one event per ticket (e.g. flag or unique constraint).
+1. **SlaBreachJob** runs on cron (default: every minute, `sla.breach.cron=0 * * * * ?`). Disable with `sla.breach.job.enabled=false`.
+2. **SlaBreachService.markBreachedAndPublishEvents()** finds tickets: status not in (RESOLVED, CLOSED), sla_breached=false, and dueAt &lt; now.
+3. For each: set sla_breached=true, save ticket; publish AuditEventPayload (SLA_BREACHED).
+4. Async listener persists one AuditEvent (SLA_BREACHED) per ticket. Flag prevents duplicate events.
 
 ## 4. Get Ticket SLA
 
